@@ -29,11 +29,13 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [activeStructureId, setActiveStructureId] = useState<string | null>('EST-001');
 
+  const [auditError, setAuditError] = useState<string | null>(null);
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
   const [isLoadingAudit, setIsLoadingAudit] = useState(false);
   const [executionStatusText, setExecutionStatusText] = useState<string | null>(null);
   const [isAuditingSingleFrame, setIsAuditingSingleFrame] = useState(false);
   const [customVideoUrl, setCustomVideoUrl] = useState<string | null>(null);
+  const [customVideoFile, setCustomVideoFile] = useState<File | null>(null);
   const [customVideoMeta, setCustomVideoMeta] = useState<CustomVideoMeta | null>(null);
   const [hasApiKey, setHasApiKey] = useState(false);
   const videoElementRef = useRef<HTMLVideoElement>(null);
@@ -91,6 +93,7 @@ export default function App() {
   // Run audit through backend (supports custom video with multi-frame extraction)
   const handleRunAudit = async (options?: { frameBase64?: string; forceAi?: boolean }) => {
     setIsLoadingAudit(true);
+    setAuditError(null);
     setExecutionStatusText('Iniciando auditoría de inventario exterior...');
 
     try {
@@ -218,6 +221,7 @@ export default function App() {
   };
 
   const handleUploadCustomVideo = (file: File) => {
+    setCustomVideoFile(file);
     const url = URL.createObjectURL(file);
     setCustomVideoUrl(url);
 
@@ -259,18 +263,126 @@ export default function App() {
           duracion_analizada_seg: duration,
         },
         telemetria: {
-          model: 'gemini-3.8-flash',
+          model: 'gemini-3.8-flash (Agentic Video)',
           prompt_tokens: 0,
           candidates_tokens: 0,
           total_tokens: 0,
           total_thought_tokens: 0,
           total_tool_use_tokens: 0,
           latencia_ms: 0,
-          processing_mode: `Video cargado: ${file.name} listo para censar`,
+          processing_mode: `Video ${file.name} listo para Agentic Video Understanding`,
           timestamp: new Date().toISOString(),
         },
       });
     };
+  };
+
+  // Google Agentic Video Understanding pipeline (Files API + gemini-3.8-flash)
+  const handleRunAgenticAudit = async () => {
+    setIsLoadingAudit(true);
+    setAuditError(null);
+    setExecutionStatusText('Iniciando pipeline de Google Agentic Video Understanding...');
+
+    try {
+      let res: Response;
+
+      if (selectedPresetId === 'custom-uploaded-video' && customVideoFile) {
+        // Chunk upload (10MB slices) to prevent HTTP 413 from reverse proxy limits
+        const CHUNK_SIZE = 10 * 1024 * 1024;
+        const totalSize = customVideoFile.size;
+        const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
+        const uploadId = `up_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+        let assembledFileName: string | null = null;
+
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(totalSize, start + CHUNK_SIZE);
+          const chunkBlob = customVideoFile.slice(start, end);
+          const percent = Math.round(((i + 1) / totalChunks) * 100);
+
+          setExecutionStatusText(
+            `Paso 1/3: Subiendo video al servidor (fragmento ${i + 1} de ${totalChunks} • ${percent}%)...`
+          );
+
+          const chunkFormData = new FormData();
+          chunkFormData.append('chunk', chunkBlob, `part_${i}`);
+          chunkFormData.append('uploadId', uploadId);
+          chunkFormData.append('chunkIndex', String(i));
+          chunkFormData.append('totalChunks', String(totalChunks));
+          chunkFormData.append('fileName', customVideoFile.name);
+
+          const chunkRes = await fetch('/api/upload-video-chunk', {
+            method: 'POST',
+            body: chunkFormData,
+          });
+
+          if (!chunkRes.ok) {
+            const chunkErr = await chunkRes.json().catch(() => ({}));
+            throw new Error(
+              chunkErr.error || `Error al subir fragmento ${i + 1}/${totalChunks} (código ${chunkRes.status})`
+            );
+          }
+
+          const chunkData = await chunkRes.json();
+          if (chunkData.assembled && chunkData.assembledFileName) {
+            assembledFileName = chunkData.assembledFileName;
+          }
+        }
+
+        if (!assembledFileName) {
+          throw new Error('No se pudo confirmar el reensamblaje del archivo de video en el servidor.');
+        }
+
+        setExecutionStatusText(
+          'Paso 2/3: Transfiriendo a Gemini Files API y analizando con Agentic Video (Think → Act → Observe)...'
+        );
+
+        res = await fetch('/api/agentic-video-audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assembledFileName,
+            fileName: customVideoFile.name,
+            mimeType: customVideoFile.type || 'video/mp4',
+            variant: activeVariant,
+            videoDuration: customVideoMeta?.durationSec || 300,
+          }),
+        });
+      } else {
+        setExecutionStatusText('Ejecutando Agentic Video Understanding en tramo de calibración...');
+
+        res = await fetch('/api/agentic-video-audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            presetId: selectedPresetId,
+            variant: activeVariant,
+            videoDuration: effectiveDuration,
+          }),
+        });
+      }
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Error en Agentic Video Audit (${res.status})`);
+      }
+
+      setExecutionStatusText('Paso 3/3: Normalizando inventario y telemetría de tokens...');
+      const newAudit: AuditoriaOOHResponse = await res.json();
+      setAudit(newAudit);
+
+      if (newAudit.estructuras && newAudit.estructuras.length > 0) {
+        setActiveStructureId(newAudit.estructuras[0].id_local);
+        setCurrentSecond(newAudit.estructuras[0].best_frame_seg);
+      }
+    } catch (err: any) {
+      console.error('Agentic Video Audit error:', err);
+      setAuditError(err.message || String(err));
+    } finally {
+      setIsLoadingAudit(false);
+      setExecutionStatusText(null);
+    }
   };
 
   return (
@@ -300,12 +412,44 @@ export default function App() {
           </div>
         )}
 
+        {/* Dynamic Execution Error Banner */}
+        {auditError && (
+          <div className="bg-red-950/60 border border-red-500/50 rounded-xl p-4 text-xs text-red-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-red-300 font-semibold">Error al ejecutar Agentic Video:</strong>
+                <p className="text-red-200/90 mt-0.5 leading-relaxed">{auditError}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  setAuditError(null);
+                  handleRunAudit({ forceAi: true });
+                }}
+                className="px-3 py-1.5 rounded-lg bg-red-900/60 hover:bg-red-800/80 text-white font-semibold text-xs border border-red-700/60 transition cursor-pointer"
+              >
+                Ejecutar Muestreo Rápido
+              </button>
+              <button
+                onClick={() => setAuditError(null)}
+                className="px-2 py-1 rounded hover:bg-red-900/40 text-red-300 hover:text-white transition text-xs"
+                title="Descartar error"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Runner & Preset Selector */}
         <AuditRunnerPanel
           presets={presets}
           selectedPresetId={selectedPresetId}
           onSelectPreset={setSelectedPresetId}
           onRunAudit={handleRunAudit}
+          onRunAgenticAudit={handleRunAgenticAudit}
           isLoading={isLoadingAudit}
           onUploadCustomVideo={handleUploadCustomVideo}
           hasCustomVideo={Boolean(customVideoUrl)}

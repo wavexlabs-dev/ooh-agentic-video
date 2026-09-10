@@ -618,6 +618,66 @@ export const ThreeMetricsSuite: React.FC<ThreeMetricsSuiteProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Google Agentic Video Official Research Benchmark */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/50 via-slate-900 to-teal-950/40 border border-emerald-800/60 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-900/80 text-emerald-300">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">
+                      Google Agentic Video Understanding vs. Muestreo Tradicional 1 FPS
+                    </h4>
+                    <p className="text-[11px] text-slate-400">
+                      Evaluación basada en la investigación oficial de Google DeepMind & Gemini Models
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href="https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-agentic-video-in-gemini/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-900/60 hover:bg-emerald-800/80 text-emerald-200 text-xs font-medium border border-emerald-700/50 transition w-fit"
+                >
+                  <span>Ver Investigación Google</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
+                <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+                  <div className="text-[11px] text-emerald-400 font-semibold uppercase tracking-wider">
+                    Ahorro de Tokens
+                  </div>
+                  <div className="text-xl font-bold text-white font-mono mt-0.5">-88% Tokens</div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Gemini inspecciona con tasa baja y acelera/hace zoom temporal sólo cuando detecta estructuras OOH.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+                  <div className="text-[11px] text-emerald-400 font-semibold uppercase tracking-wider">
+                    Reducción de Costo
+                  </div>
+                  <div className="text-xl font-bold text-white font-mono mt-0.5">-66% Facturación</div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Permite escalar la auditoría a cientos de kilómetros de vialidades a una fracción del costo de 1 FPS.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+                  <div className="text-[11px] text-emerald-400 font-semibold uppercase tracking-wider">
+                    Precisión Temporal
+                  </div>
+                  <div className="text-xl font-bold text-white font-mono mt-0.5">Sub-segundo</div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Ciclo autónomo Think → Act → Observe para fijar <code className="text-sky-300">best_frame_seg</code> óptimo.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

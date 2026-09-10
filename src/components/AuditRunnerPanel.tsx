@@ -20,6 +20,7 @@ interface AuditRunnerPanelProps {
   selectedPresetId: string;
   onSelectPreset: (id: string) => void;
   onRunAudit: (options: { frameBase64?: string; forceAi?: boolean }) => Promise<void>;
+  onRunAgenticAudit: () => Promise<void>;
   isLoading: boolean;
   onUploadCustomVideo: (file: File) => void;
   hasCustomVideo: boolean;
@@ -33,6 +34,7 @@ export const AuditRunnerPanel: React.FC<AuditRunnerPanelProps> = ({
   selectedPresetId,
   onSelectPreset,
   onRunAudit,
+  onRunAgenticAudit,
   isLoading,
   onUploadCustomVideo,
   hasCustomVideo,
@@ -64,52 +66,82 @@ export const AuditRunnerPanel: React.FC<AuditRunnerPanelProps> = ({
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
         <div>
-          <h2 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-            <span>Control de Ejecución del Censo (5 Min Chunk)</span>
-            <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800">
-              gemini-3.8-flash
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+              <span>Control de Ejecución del Censo (5 Min Chunk)</span>
+            </h2>
+            <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-emerald-400" />
+              <span>Agentic Video • gemini-3.8-flash</span>
             </span>
-          </h2>
+          </div>
           <p className="text-xs text-slate-400 mt-0.5">
             {isCustomSelected
-              ? `Video propio seleccionado: ${customVideoInfo?.name || 'Archivo personalizado'} listo para auditar con visión multimodal.`
+              ? `Video propio seleccionado: ${customVideoInfo?.name || 'Archivo personalizado'} listo para Agentic Video Understanding.`
               : 'Selecciona un tramo vehicular de calibración o carga tu propio video 360° / plano de Insta360.'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setShowInstructions(!showInstructions)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition"
           >
             <HelpCircle className="w-3.5 h-3.5 text-sky-400" />
-            <span>{showInstructions ? 'Ocultar Guía' : 'Ver Guía de AI Studio'}</span>
+            <span>{showInstructions ? 'Ocultar Guía' : 'Ver Guía Agentic'}</span>
           </button>
 
+          {/* Primary Agentic Video Execution */}
           <button
-            onClick={() => onRunAudit({ forceAi: true })}
+            onClick={onRunAgenticAudit}
             disabled={isLoading}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white text-xs font-bold shadow-md transition cursor-pointer ${
-              isCustomSelected
-                ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/30'
-                : 'bg-sky-600 hover:bg-sky-500 shadow-sky-600/30'
-            } disabled:bg-slate-800 disabled:opacity-60`}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-white text-xs font-bold shadow-md transition cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-600/30 disabled:bg-slate-800 disabled:opacity-60"
+            title="Sube el video a Gemini Files API y permite que el modelo navegue temporalmente (Think → Act → Observe)"
           >
             {isLoading ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                <span>{isCustomSelected ? 'Analizando tu Video con Gemini...' : 'Analizando Video con Gemini...'}</span>
+                <span>Ejecutando Agentic Video...</span>
               </>
             ) : (
               <>
-                <Play className="w-4 h-4 text-white fill-white" />
-                <span>
-                  {isCustomSelected ? 'Ejecutar Censo en mi Video' : 'Ejecutar Censo de Estructuras'}
-                </span>
+                <Sparkles className="w-4 h-4 text-emerald-200 fill-emerald-300" />
+                <span>Ejecutar Agentic Video Audit</span>
               </>
             )}
           </button>
+
+          {/* Fallback frame-by-frame execution */}
+          <button
+            onClick={() => onRunAudit({ forceAi: true })}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition disabled:opacity-60"
+            title="Muestreo estático por fotogramas"
+          >
+            <Play className="w-3.5 h-3.5 text-slate-400" />
+            <span>Muestreo Rápido</span>
+          </button>
         </div>
+      </div>
+
+      {/* Google Agentic Video Architecture Callout */}
+      <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-800/60 flex flex-col md:flex-row items-start md:items-center justify-between gap-2.5 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="p-1 rounded bg-emerald-900/80 text-emerald-300">
+            <Sparkles className="w-3.5 h-3.5" />
+          </span>
+          <div className="text-slate-300 text-[11px] leading-tight">
+            <strong className="text-emerald-300">Google Agentic Video Understanding:</strong> Navegación temporal autónoma (Think → Act → Observe). Hasta <strong className="text-white">88% de ahorro en tokens</strong> y <strong className="text-white">66% en costos</strong> con recuperación sub-segundo de estructuras OOH.
+          </div>
+        </div>
+        <a
+          href="https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-agentic-video-in-gemini/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] text-emerald-400 hover:text-emerald-300 underline font-medium whitespace-nowrap"
+        >
+          Ver anuncio oficial de Google &rarr;
+        </a>
       </div>
 
       {/* Execution Progress Banner */}

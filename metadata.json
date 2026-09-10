@@ -1,6 +1,6 @@
 {
   "name": "Auditor OOH 360° - Censo de Publicidad Exterior",
-  "description": "Auditor de inventario y censo de estructuras publicitarias OOH en video 360° vehicular en México con Gemini 3.8 Flash, bounding boxes normalizados, auditoría de recall, precisión temporal y costos por hora.",
+  "description": "Auditor de inventario y censo de estructuras publicitarias OOH en video 360° vehicular en México con Google Agentic Video Understanding (Gemini 3.8 Flash), bounding boxes normalizados, auditoría de recall, precisión temporal y costos por hora.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
