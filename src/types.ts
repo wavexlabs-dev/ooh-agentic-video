@@ -38,7 +38,10 @@ export interface EstructuraPublicitaria {
 
 export interface ResumenAuditoria {
   duracion_analizada_seg: number;
+  ultimo_segundo_revisado?: number;
+  recorrido_completo?: boolean;
   total_estructuras: number;
+  estructuras_con_campos_sin_determinar?: number;
   tramos_no_analizables?: TramoNoAnalizable[];
 }
 
@@ -56,6 +59,13 @@ export interface AuditoriaOOHResponse {
     processing_mode: string;
     timestamp: string;
     warning?: string;
+    agentic_steps?: {
+      processing_calls: number;
+      processing_results: number;
+      thought_steps: number;
+      model_output_steps: number;
+      is_confirmed_agentic: boolean;
+    };
   };
 }
 

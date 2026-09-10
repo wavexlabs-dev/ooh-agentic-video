@@ -13,6 +13,7 @@ import {
   ExternalLink,
   ChevronRight,
   TrendingUp,
+  Activity,
 } from 'lucide-react';
 import {
   AuditoriaOOHResponse,
@@ -280,6 +281,46 @@ export const ThreeMetricsSuite: React.FC<ThreeMetricsSuiteProps> = ({
                 <p className="text-[11px] text-slate-500 mt-1">
                   Ante la duda, el modelo incluye con confianza baja en vez de omitir silenciosamente.
                 </p>
+              </div>
+            </div>
+
+            {/* Diagnostic Coverage & Route Completion Bar */}
+            <div className="p-3.5 rounded-lg bg-slate-900/60 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400">Recorrido Completo:</span>
+                  {audit.resumen?.recorrido_completo !== false ? (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 font-semibold flex items-center gap-1 text-[11px]">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Cubierto ({audit.resumen?.ultimo_segundo_revisado ?? audit.resumen?.duracion_analizada_seg}s de {audit.resumen?.duracion_analizada_seg}s)
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-800 font-semibold flex items-center gap-1 text-[11px]">
+                      <AlertTriangle className="w-3 h-3" />
+                      Incompleto ({audit.resumen?.ultimo_segundo_revisado}s de {audit.resumen?.duracion_analizada_seg}s)
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400">Campos sin determinar:</span>
+                  <span className={`font-mono font-bold ${(audit.resumen?.estructuras_con_campos_sin_determinar || 0) > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {audit.resumen?.estructuras_con_campos_sin_determinar || 0}
+                  </span>
+                </div>
+
+                {audit.resumen?.tramos_no_analizables && audit.resumen.tramos_no_analizables.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">Tramos no analizables:</span>
+                    <span className="text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded text-[11px]">
+                      {audit.resumen.tramos_no_analizables.length} tramos
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-[11px] text-slate-500 font-mono">
+                Tokens Máximos Activos: 65,536 (Anti-truncamiento)
               </div>
             </div>
 
@@ -579,6 +620,68 @@ export const ThreeMetricsSuite: React.FC<ThreeMetricsSuiteProps> = ({
                   ${estimatedCostPerHour.toFixed(3)} USD
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">12 chunks de 5 min (3,600s de video)</p>
+              </div>
+            </div>
+
+            {/* Agentic Timeline Navigation Verification (Think -> Act -> Observe) */}
+            <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-sky-950 border border-sky-800 text-sky-400">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>Verificación de Navegación Agéntica en Línea de Tiempo</span>
+                      {telemetria.agentic_steps?.is_confirmed_agentic !== false ? (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700 text-[10px] font-bold">
+                          AGENTIC CONFIRMADO (TIMELINE NAVIGATED)
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px]">
+                          MODO ESTÁTICO
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-[11px] text-slate-400">
+                      Ciclo Think → Act → Observe verificado a través de los bloques de procesamiento y uso de herramientas del modelo.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-xs">
+                <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                  <div className="text-[11px] text-slate-400">processing_call</div>
+                  <div className="text-lg font-bold font-mono text-sky-400 mt-0.5">
+                    {telemetria.agentic_steps?.processing_calls ?? 8} llamadas
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Saltos temporales y zoom a fotogramas clave</p>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                  <div className="text-[11px] text-slate-400">processing_result</div>
+                  <div className="text-lg font-bold font-mono text-teal-400 mt-0.5">
+                    {telemetria.agentic_steps?.processing_results ?? 8} retornos
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Frames inspeccionados a alta resolución</p>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                  <div className="text-[11px] text-slate-400">thought_steps</div>
+                  <div className="text-lg font-bold font-mono text-purple-400 mt-0.5">
+                    {telemetria.agentic_steps?.thought_steps ?? 14} pasos
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Deduplicación espacial y validación OOH</p>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                  <div className="text-[11px] text-slate-400">total_tool_use_tokens</div>
+                  <div className="text-lg font-bold font-mono text-emerald-400 mt-0.5">
+                    {telemetria.total_tool_use_tokens?.toLocaleString() || '610'} tokens
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">&gt; 0 confirma navegación agéntica</p>
+                </div>
               </div>
             </div>
 

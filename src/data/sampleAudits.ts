@@ -41,10 +41,19 @@ export const OOH_RESPONSE_SCHEMA_JSON = {
   properties: {
     resumen: {
       type: "object",
-      required: ["duracion_analizada_seg", "total_estructuras"],
+      required: [
+        "duracion_analizada_seg",
+        "ultimo_segundo_revisado",
+        "recorrido_completo",
+        "total_estructuras",
+        "estructuras_con_campos_sin_determinar"
+      ],
       properties: {
         duracion_analizada_seg: { type: "number" },
+        ultimo_segundo_revisado: { type: "number" },
+        recorrido_completo: { type: "boolean" },
         total_estructuras: { type: "integer" },
+        estructuras_con_campos_sin_determinar: { type: "integer" },
         tramos_no_analizables: {
           type: "array",
           items: {
@@ -117,7 +126,10 @@ export const PRESET_CHUNKS: ChunkVideoPreset[] = [
     sampleAudit: {
       resumen: {
         duracion_analizada_seg: 300,
+        ultimo_segundo_revisado: 298.5,
+        recorrido_completo: true,
         total_estructuras: 9,
+        estructuras_con_campos_sin_determinar: 1,
         tramos_no_analizables: [
           {
             desde_seg: 138.0,
@@ -134,8 +146,15 @@ export const PRESET_CHUNKS: ChunkVideoPreset[] = [
         candidates_tokens: 1240,
         total_tokens: 23720,
         latencia_ms: 14250,
-        processing_mode: 'Agentic Thinking (High Media Res)',
-        timestamp: '2026-09-10T10:05:00Z'
+        processing_mode: 'Agentic Video (High Media Res)',
+        timestamp: '2026-09-10T10:05:00Z',
+        agentic_steps: {
+          processing_calls: 8,
+          processing_results: 8,
+          thought_steps: 14,
+          model_output_steps: 1,
+          is_confirmed_agentic: true,
+        }
       },
       estructuras: [
         {
@@ -294,7 +313,10 @@ export const PRESET_CHUNKS: ChunkVideoPreset[] = [
     sampleAudit: {
       resumen: {
         duracion_analizada_seg: 300,
+        ultimo_segundo_revisado: 295.0,
+        recorrido_completo: true,
         total_estructuras: 6,
+        estructuras_con_campos_sin_determinar: 0,
         tramos_no_analizables: []
       },
       telemetria: {
@@ -305,8 +327,15 @@ export const PRESET_CHUNKS: ChunkVideoPreset[] = [
         candidates_tokens: 950,
         total_tokens: 21460,
         latencia_ms: 11800,
-        processing_mode: 'Agentic Thinking (High Media Res - Perspective)',
-        timestamp: '2026-09-10T10:07:00Z'
+        processing_mode: 'Agentic Video (High Media Res - Perspective)',
+        timestamp: '2026-09-10T10:07:00Z',
+        agentic_steps: {
+          processing_calls: 6,
+          processing_results: 6,
+          thought_steps: 11,
+          model_output_steps: 1,
+          is_confirmed_agentic: true,
+        }
       },
       estructuras: [
         {

@@ -9,6 +9,7 @@ import { JsonViewerModal } from './components/JsonViewerModal';
 import { PRESET_CHUNKS } from './data/sampleAudits';
 import { AuditoriaOOHResponse, ChunkVideoPreset } from './types';
 import { extractSampleFrames } from './utils/videoExtractor';
+import { fetchJsonSafely } from './utils/apiHelper';
 
 interface CustomVideoMeta {
   name: string;
@@ -49,7 +50,7 @@ export default function App() {
   // Check health and API key status on mount
   useEffect(() => {
     fetch('/api/health')
-      .then((res) => res.json())
+      .then((res) => fetchJsonSafely<{ hasApiKey?: boolean }>(res))
       .then((data) => {
         setHasApiKey(Boolean(data.hasApiKey));
       })
@@ -140,12 +141,7 @@ export default function App() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || `Error en auditoría (${res.status})`);
-      }
-
-      const newAudit: AuditoriaOOHResponse = await res.json();
+      const newAudit = await fetchJsonSafely<AuditoriaOOHResponse>(res);
       setAudit(newAudit);
 
       if (newAudit.estructuras && newAudit.estructuras.length > 0) {
@@ -154,7 +150,7 @@ export default function App() {
       }
     } catch (err: any) {
       console.error('Audit execution error:', err);
-      alert(`Error al ejecutar censo con Gemini: ${err.message || err}`);
+      setAuditError(err.message || String(err));
     } finally {
       setIsLoadingAudit(false);
       setExecutionStatusText(null);
@@ -284,7 +280,7 @@ export default function App() {
     setExecutionStatusText('Iniciando pipeline de Google Agentic Video Understanding...');
 
     try {
-      let res: Response;
+      let assembledFileName: string | null = null;
 
       if (selectedPresetId === 'custom-uploaded-video' && customVideoFile) {
         // Chunk upload (10MB slices) to prevent HTTP 413 from reverse proxy limits
@@ -292,8 +288,6 @@ export default function App() {
         const totalSize = customVideoFile.size;
         const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
         const uploadId = `up_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-
-        let assembledFileName: string | null = null;
 
         for (let i = 0; i < totalChunks; i++) {
           const start = i * CHUNK_SIZE;
@@ -317,14 +311,12 @@ export default function App() {
             body: chunkFormData,
           });
 
-          if (!chunkRes.ok) {
-            const chunkErr = await chunkRes.json().catch(() => ({}));
-            throw new Error(
-              chunkErr.error || `Error al subir fragmento ${i + 1}/${totalChunks} (código ${chunkRes.status})`
-            );
-          }
+          const chunkData = await fetchJsonSafely<{
+            success: boolean;
+            assembled?: boolean;
+            assembledFileName?: string;
+          }>(chunkRes);
 
-          const chunkData = await chunkRes.json();
           if (chunkData.assembled && chunkData.assembledFileName) {
             assembledFileName = chunkData.assembledFileName;
           }
@@ -333,48 +325,78 @@ export default function App() {
         if (!assembledFileName) {
           throw new Error('No se pudo confirmar el reensamblaje del archivo de video en el servidor.');
         }
-
-        setExecutionStatusText(
-          'Paso 2/3: Transfiriendo a Gemini Files API y analizando con Agentic Video (Think → Act → Observe)...'
-        );
-
-        res = await fetch('/api/agentic-video-audit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            assembledFileName,
-            fileName: customVideoFile.name,
-            mimeType: customVideoFile.type || 'video/mp4',
-            variant: activeVariant,
-            videoDuration: customVideoMeta?.durationSec || 300,
-          }),
-        });
-      } else {
-        setExecutionStatusText('Ejecutando Agentic Video Understanding en tramo de calibración...');
-
-        res = await fetch('/api/agentic-video-audit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            presetId: selectedPresetId,
-            variant: activeVariant,
-            videoDuration: effectiveDuration,
-          }),
-        });
       }
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || `Error en Agentic Video Audit (${res.status})`);
+      setExecutionStatusText('Iniciando ciclo agéntico en el servidor...');
+
+      const startPayload =
+        selectedPresetId === 'custom-uploaded-video' && customVideoFile
+          ? {
+              assembledFileName,
+              fileName: customVideoFile.name,
+              mimeType: customVideoFile.type || 'video/mp4',
+              variant: activeVariant,
+              videoDuration: customVideoMeta?.durationSec || 300,
+            }
+          : {
+              presetId: selectedPresetId,
+              variant: activeVariant,
+              videoDuration: effectiveDuration,
+            };
+
+      const startRes = await fetch('/api/agentic-video-audit/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(startPayload),
+      });
+
+      const startData = await fetchJsonSafely<{ success: boolean; jobId: string }>(startRes);
+      const jobId = startData.jobId;
+
+      // Poll job status until completed or error (prevents proxy timeouts completely)
+      let isDone = false;
+      let pollAttempts = 0;
+      const maxPollAttempts = 150; // up to 5 min
+
+      while (!isDone && pollAttempts < maxPollAttempts) {
+        await new Promise((r) => setTimeout(r, 2000));
+        pollAttempts++;
+
+        const statusRes = await fetch(`/api/agentic-video-audit/status?jobId=${encodeURIComponent(jobId)}`);
+        const jobData = await fetchJsonSafely<{
+          id: string;
+          status: 'processing' | 'completed' | 'error';
+          progressStep: string;
+          progressPercent: number;
+          result?: AuditoriaOOHResponse;
+          error?: string;
+        }>(statusRes);
+
+        if (jobData.status === 'processing') {
+          setExecutionStatusText(
+            jobData.progressStep || 'Gemini 3.8 Flash procesando video con Agentic Video Understanding...'
+          );
+        } else if (jobData.status === 'completed') {
+          isDone = true;
+          setExecutionStatusText('Normalizando inventario y telemetría de tokens...');
+          if (!jobData.result) {
+            throw new Error('El trabajo finalizó pero no devolvió el resultado del censo.');
+          }
+          const newAudit: AuditoriaOOHResponse = jobData.result;
+          setAudit(newAudit);
+
+          if (newAudit.estructuras && newAudit.estructuras.length > 0) {
+            setActiveStructureId(newAudit.estructuras[0].id_local);
+            setCurrentSecond(newAudit.estructuras[0].best_frame_seg);
+          }
+        } else if (jobData.status === 'error') {
+          isDone = true;
+          throw new Error(jobData.error || 'Ocurrió un error durante la ejecución de Agentic Video.');
+        }
       }
 
-      setExecutionStatusText('Paso 3/3: Normalizando inventario y telemetría de tokens...');
-      const newAudit: AuditoriaOOHResponse = await res.json();
-      setAudit(newAudit);
-
-      if (newAudit.estructuras && newAudit.estructuras.length > 0) {
-        setActiveStructureId(newAudit.estructuras[0].id_local);
-        setCurrentSecond(newAudit.estructuras[0].best_frame_seg);
+      if (!isDone) {
+        throw new Error('Tiempo de espera agotado mientras se completaba la auditoría agéntica.');
       }
     } catch (err: any) {
       console.error('Agentic Video Audit error:', err);
